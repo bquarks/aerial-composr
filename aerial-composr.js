@@ -14,27 +14,27 @@ AerialComposr = function (conf) {
     connect = new Connect({ config:conf });
   }
 
+  var wCB = Meteor.wrapAsync(function (coll, f) {
+    if (!f)
+      return function () {};
+
+    return function (/*args*/) {
+      var context = this,
+          args = arguments;
+
+      if (coll.paused)
+        return;
+
+      coll._observeQueue.queueTask(function () {
+        f.apply(context, args);
+      });
+    };
+  });
+
   this.get = (coll, selector, options) => {
     // TODO: transform here the selector for the composr query.
 
-    let wCB = Meteor.wrapAsync(function (f) {
-      if (!f)
-        return function () {};
-
-      return function (/*args*/) {
-        var context = this;
-        var args = arguments;
-
-        if (coll.paused)
-          return;
-
-        coll._observeQueue.queueTask(function () {
-          f.apply(context, args);
-        });
-      };
-    });
-
-    connect.get(coll.name, selector).then(wCB((res) => {
+    connect.get(coll.name, selector).then(wCB(coll, (res) => {
       _.each(res[coll.name], (doc) => {
         doc._id = doc.id;
         try {
